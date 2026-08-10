@@ -4,6 +4,10 @@ An AI-powered IT support automation built with n8n that automatically
 processes incoming support requests, classifies issues, assigns
 technicians, calculates SLAs, and tracks ticket status.
 
+## Workflow Architecture
+
+![IT Support Ticket Management Workflow](docs/workflow_architecture_it_support_ticket_automation.png)
+
 ## Problem
 
 IT support requests are often handled manually.
