@@ -1,0 +1,1395 @@
+{
+  "name": "IT Support Ticket Management and Tracking System",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "id": "7839afdf-6ace-43a0-99f1-b8f3ec8211f7",
+      "name": "When Gmail Received",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "position": [
+        672,
+        32
+      ],
+      "typeVersion": 1.4,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IJWvRCmAnHEEIjrX",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0aca45e8-41e4-437b-8f51-76bf72bc0b47",
+              "name": "=name",
+              "type": "string",
+              "value": "={{ $json.From.split('<')[0].trim() }}"
+            },
+            {
+              "id": "ae20b8ec-63e4-44a6-998b-2014c0f80187",
+              "name": "email",
+              "type": "string",
+              "value": "={{ $json.From.match(/<(.+)>/) ? $json.From.match(/<(.+)>/)[1] : $json.From }}"
+            },
+            {
+              "id": "b832a86b-0de2-46db-ac60-e80c93c28522",
+              "name": "issue",
+              "type": "string",
+              "value": "={{ $json.snippet }}"
+            },
+            {
+              "id": "91911571-b86c-493a-8aed-625f6cefc6d1",
+              "name": "source",
+              "type": "string",
+              "value": "=Gmail"
+            },
+            {
+              "id": "ff8cd4b4-ef2f-4184-a6c8-ab02ebeb48d0",
+              "name": "timestamp",
+              "type": "string",
+              "value": "={{ $now }}"
+            },
+            {
+              "id": "bb23af06-c033-4945-b5fd-e19ae02ada61",
+              "name": "subject",
+              "value": "={{ $json.Subject }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "40f430af-2ae9-415c-9b2c-c0fb9cfe06f3",
+      "name": "Set Gmail Inquiry Fields",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        880,
+        32
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "21775ebb-d0a7-4b9b-83f0-51af135e0716",
+              "leftValue": "={{ $json.issue }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1104,
+        32
+      ],
+      "id": "452642bc-742c-4432-9be9-f371d10c868d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('When Gmail Received').item.json.id }}",
+        "message": "Please provide a description of the issue.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1376,
+        288
+      ],
+      "id": "cf966056-5381-4750-9902-b92f816f5391",
+      "name": "Reply to a message",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IJWvRCmAnHEEIjrX",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxTokens": 1000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        128
+      ],
+      "id": "217836e2-7e90-480a-b399-b2b0df84ae5a",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "vl3eXmJvBFL8honc",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "IT Support Ticket Management",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_TICKETS_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Tickets",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_TICKETS_TABLE_ID"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Client Name": "={{ $json.output.client_name }}",
+            "Issue Title": "={{ $json.output.issue_title }}",
+            "Client Email": "={{ $('Set Gmail Inquiry Fields').item.json.email }}",
+            "Issue Description": "={{ $json.output.summary }}",
+            "Category": "={{ $json.output.category }}",
+            "Priority": "={{ $json.output.priority }}",
+            "Subcategory": "={{ $json.output.subcategory }}",
+            "Severity": "={{ $json.output.severity }}",
+            "SLA Deadline": "={{ DateTime.fromISO($json.sla_deadline).toFormat('h:mm a') }}",
+            "Status": "Open"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Ticket Number",
+              "displayName": "Ticket Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Ticket ID",
+              "displayName": "Ticket ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Client Name",
+              "displayName": "Client Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Client Email",
+              "displayName": "Client Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Issue Title",
+              "displayName": "Issue Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Issue Description",
+              "displayName": "Issue Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Subcategory",
+              "displayName": "Subcategory",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Severity",
+              "displayName": "Severity",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Assignee",
+              "displayName": "Assignee",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "SLA Deadline",
+              "displayName": "SLA Deadline",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Created At",
+              "displayName": "Created At",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Updated At",
+              "displayName": "Updated At",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Resolved At",
+              "displayName": "Resolved At",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1984,
+        -80
+      ],
+      "id": "941a2578-bf73-4e71-87bf-8dc9f05df602",
+      "name": "Create a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "JZLkAcbC8qkud9G8",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BNRQV8KJ8",
+          "mode": "list",
+          "cachedResultName": "technician-simon"
+        },
+        "text": "=New Support Ticket - {{ $json.fields['Ticket ID'] }}\n\nClient: {{ $json.fields['Client Name'] }}\nIssue: {{ $json.fields['Issue Title'] }}\nCategory: {{ $json.fields.Category }}\nPriority: {{ $json.fields.Priority }}\nSLA Deadline: {{ $json.fields['SLA Deadline'] }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        3296,
+        16
+      ],
+      "id": "a7f20e8a-72ca-47ae-b0c2-1637cd198971",
+      "name": "Send a message",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "slackApi": {
+          "id": "xjaWUpcrH5qn9YHL",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.fields['Client Email'] }}",
+        "subject": "=IT Support Ticket Created - {{ $json.fields['Ticket ID'] }}",
+        "emailType": "text",
+        "message": "=Hi {{ $json.fields['Client Name'] }},\n\nWe've received your IT support request.\n\nTicket ID: {{ $json.fields['Ticket ID'] }}\nIssue: {{ $json.fields['Issue Title'] }}\nPriority: {{ $json.fields.Priority }}\nStatus: Open\n\nOur support team has been notified and will attend to your request.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3296,
+        -160
+      ],
+      "id": "00f766a0-8349-48d3-99ba-b15829488a63",
+      "name": "Send a message1",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IJWvRCmAnHEEIjrX",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "IT Support Ticket Management",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_TECHNICIANS_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Technicians",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_TECHNICIANS_TABLE_ID"
+        },
+        "filterByFormula": "=AND(\n  {Specialization} = \"{{ $('SLA Calculator').item.json.output.category }}\",\n  {Available} = \"Yes\",\n  {Max Capacity} > {Active Tickets}\n)",
+        "options": {},
+        "sort": {
+          "property": []
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        2224,
+        -80
+      ],
+      "id": "564d6aea-c2c9-4671-9504-3fac3c29d76b",
+      "name": "Search records",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "JZLkAcbC8qkud9G8",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"client_name\": {\n      \"type\": \"string\"\n    },\n    \"issue_title\": {\n      \"type\": \"string\"\n    },\n    \"category\": {\n      \"type\": \"string\"\n    },\n    \"subcategory\": {\n      \"type\": \"string\"\n    },\n    \"priority\": {\n      \"type\": \"string\",\n      \"enum\": [\"Critical\", \"High\", \"Medium\", \"Low\"]\n    },\n    \"severity\": {\n      \"type\": \"string\",\n      \"enum\": [\"Critical\", \"High\", \"Medium\", \"Low\"]\n    },\n    \"sentiment\": {\n      \"type\": \"string\"\n    },\n    \"summary\": {\n      \"type\": \"string\"\n    },\n    \"support_team\": {\n      \"type\": \"string\"\n    },\n    \"support_level\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"client_name\",\n    \"issue_title\",\n    \"category\",\n    \"subcategory\",\n    \"priority\",\n    \"severity\",\n    \"summary\",\n    \"support_team\",\n    \"support_level\"\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1600,
+        128
+      ],
+      "id": "1cfc4685-d30b-4215-b179-0b0086b7671a",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "IT Support Ticket Management",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_TICKETS_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Tickets",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_TICKETS_TABLE_ID"
+        },
+        "id": "={{ $('Create a record').item.json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        3040,
+        -80
+      ],
+      "id": "e37011c7-b80e-45c1-9ead-60e0187f5799",
+      "name": "Get a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "JZLkAcbC8qkud9G8",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxTokensToSample": 1000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1472,
+        128
+      ],
+      "id": "a5d34241-a4d6-41f8-9e56-63ab664b880f",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "AwYhaiFjV82yNvm4",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 1. Start \n\nStarts the workflow whenever a customer IT issue/inquiry is received.",
+        "height": 192,
+        "width": 208,
+        "color": "#0C4BDF"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -176
+      ],
+      "id": "83a5a415-17c6-480a-8580-3c4e2e0ea8a5",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## 2. Data Preparation\n\nTakes the messy Gmail output and creates clean fields (name, email, issue description, etc) that the rest of the workflow can use.",
+        "height": 272,
+        "width": 208,
+        "color": "#0C4BDF"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        832,
+        -256
+      ],
+      "id": "b56acee7-6293-4f5e-bc76-6347074ec767",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## 3. Validation\n\nDetermines if the email contains a client support issue or not. ",
+        "height": 176,
+        "width": 208,
+        "color": "#0C4BDF"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        -160
+      ],
+      "id": "54099a76-0db0-4dc2-addb-f1ce1a24a883",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## 4. AI Analysis & Classification Engine\n\nThe connected LLM analyzes incoming client IT support issues and determines the main category, subcategory, priority, severity, appropriate support team and support level and outputs them as a structured JSON.",
+        "height": 288,
+        "width": 288,
+        "color": "#0C4BE9"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        -384
+      ],
+      "id": "2e8b885f-0ec2-40b6-a98b-1f53ecf38843",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the following IT support request:\n\nClient Name:\n{{ $json.name }}\n\nIssue Title:\n{{ $json.subject }}\n\nIssue Description:\n{{ $json.issue }}",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are an IT support ticket classification assistant.  Your task is to analyze incoming IT support issues and classify them for an automated ticket management system.  Analyze the client's issue and determine:  1. The main category of the issue. 2. The specific subcategory. 3. The priority level. 4. The severity level. 5. The client's sentiment. 6. A concise summary of the issue. 7. The most appropriate support team. 8. The recommended support level.  Priority levels: - Critical: Major outage or issue affecting multiple users or critical business operations. - High: Serious issue preventing an individual user or important business function from working. - Medium: Issue affecting productivity but with a possible workaround. - Low: Minor issue, general request, or issue that does not significantly affect operations.  Severity levels: - Critical - High - Medium - Low  Possible support teams include: - Network Support - Hardware Support - Software Support - Security Team - Email Support - General IT Support  Support levels: - Level 1 Support - Level 2 Support - Level 3 Support  Do not invent information that is not present in the client's request.  Return your analysis in the required structured format. Possible categories include:- Email - Network - Software - Hardware"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1392,
+        -80
+      ],
+      "id": "9d9cbbed-1212-49fd-81b5-ff02ea727227",
+      "name": "Analysis & Classification",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "## 5. Priority to SLA Converter\n\nBased on the priority obtained from the LLM, this node determines how quickly the issue must be handled.",
+        "height": 240,
+        "width": 208,
+        "color": "#0C4BE9"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        -336
+      ],
+      "id": "8dad6e31-23d5-4bab-b4b4-cd10cfc5824e",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const priority =\n  ($json.output.priority || \"\").trim().toLowerCase();\n\nconst slaHours = {\n  critical: 1,\n  high: 4,\n  medium: 8,\n  low: 24\n};\n\nconst hours = slaHours[priority] ?? 24;\n\nreturn {\n  json: {\n    ...$json,\n    sla_hours: hours,\n    sla_assigned_at: new Date().toISOString(),\n    sla_deadline: new Date(\n      Date.now() + hours * 60 * 60 * 1000\n    ).toISOString()\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        -80
+      ],
+      "id": "ac485f57-deeb-45bf-b2b0-ddff1339b391",
+      "name": "SLA Calculator"
+    },
+    {
+      "parameters": {
+        "content": "## 6. Ticketer\n\nCreates the actual ticket in Airtable using relevant client information obtained from previous nodes. Automatically assigns a ticket number for every new record and sets the ticket status as \"Open\".",
+        "height": 288,
+        "color": "#0C4BE9"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1904,
+        -384
+      ],
+      "id": "53c656ed-b69e-46f0-a0dc-6f185a28e0d2",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## 7. Tech Search\n\nFinds technicians listed in the system who can handle the issue category, who are available and have active tickets less than max capacity using a filtering logic (formula).",
+        "height": 272,
+        "width": 224,
+        "color": "#0C4BE9"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        -368
+      ],
+      "id": "a3a1417f-26da-4feb-a0b1-04b31d6c5554",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## 8. Selection\n\nPicks the technician with the lowest workload from the results obtained from the previous node.",
+        "height": 240,
+        "width": 176,
+        "color": "#0C4BE9"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2400,
+        -336
+      ],
+      "id": "af900b6d-3fcf-4d7f-8427-6cee9057824c",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "## 9. Ticket Update\n\nAssigns the selected technician to the issue and updates the ticket record created earlier. Also, changes the ticket status to \"Assigned\".",
+        "height": 272,
+        "width": 192,
+        "color": "#0C4BE9"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2592,
+        -368
+      ],
+      "id": "8f1d34d9-6f97-4984-b2a8-5c8524384e90",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "jsCode": "items.sort((a, b) => {\n  return a.json.fields[\"Active Tickets\"] - b.json.fields[\"Active Tickets\"];\n});\n\nreturn [items[0]];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2432,
+        -80
+      ],
+      "id": "9a63fd72-ec70-4dcb-b684-8d864ae2223b",
+      "name": "Tech Selector"
+    },
+    {
+      "parameters": {
+        "content": "## 10. Tech Record Update\n\nUpdates the technician's workload. Increases the assigned technician's number of active tickets by 1.",
+        "height": 272,
+        "width": 192,
+        "color": "#0C4BE9"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2800,
+        -368
+      ],
+      "id": "dc356506-54c6-47a5-8503-94202340f5d8",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "## 11. Information Retrieval\n\nRetrieves the completed ticket information.",
+        "height": 224,
+        "width": 150,
+        "color": "#0C4BE9"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3008,
+        -320
+      ],
+      "id": "33097aec-2f4d-42f0-8007-d2b8ae4d47c0",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "IT Support Ticket Management",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_TICKETS_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Tickets",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_TICKETS_TABLE_ID"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Create a record').item.json.id }}",
+            "Assigned To": "={{ $json.fields.Name }}",
+            "Status": "Assigned"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true
+            },
+            {
+              "id": "Ticket Number",
+              "displayName": "Ticket Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Ticket ID",
+              "displayName": "Ticket ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Client Name",
+              "displayName": "Client Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Client Email",
+              "displayName": "Client Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Issue Title",
+              "displayName": "Issue Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Issue Description",
+              "displayName": "Issue Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Subcategory",
+              "displayName": "Subcategory",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Severity",
+              "displayName": "Severity",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Assigned To",
+              "displayName": "Assigned To",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "SLA Deadline",
+              "displayName": "SLA Deadline",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Created At",
+              "displayName": "Created At",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Updated At",
+              "displayName": "Updated At",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Resolved At",
+              "displayName": "Resolved At",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        -80
+      ],
+      "id": "90170c2d-7741-49d7-9cca-54b2ea9a6780",
+      "name": "Record Update",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "JZLkAcbC8qkud9G8",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "IT Support Ticket Management",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_TECHNICIANS_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Technicians",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_TECHNICIANS_TABLE_ID"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Tech Selector').item.json.id }}",
+            "Active Tickets": "={{ $('Tech Selector').item.json.fields['Active Tickets'] + 1 }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true
+            },
+            {
+              "id": "Technician ID",
+              "displayName": "Technician ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Specialization",
+              "displayName": "Specialization",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Active Tickets",
+              "displayName": "Active Tickets",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Available",
+              "displayName": "Available",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Max Capacity",
+              "displayName": "Max Capacity",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        2848,
+        -80
+      ],
+      "id": "82cb906b-ebfa-4a92-8e75-a22413624497",
+      "name": "Workload Update",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "JZLkAcbC8qkud9G8",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 11. Notification\n\nSends an email notification of the newly created ticket, including the ticket number and ticket status, to the client.\n\nSends a slack message to the assigned technician notifying them of a new ticket and the SLA deadline.",
+        "height": 288,
+        "width": 310,
+        "color": "#0C4BE9"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3184,
+        -464
+      ],
+      "id": "34efd0d2-ea84-45cf-ba46-7c1771345950",
+      "name": "Sticky Note11"
+    },
+    {
+      "parameters": {
+        "content": "## 12. Reply\n\nSends a response to the client that their email does not contain a support issue.",
+        "color": "#0C4BE9"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        256
+      ],
+      "id": "e063db62-70c0-469c-b3ca-f48f4ad94167",
+      "name": "Sticky Note12"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Gmail Received": {
+      "main": [
+        [
+          {
+            "node": "Set Gmail Inquiry Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Gmail Inquiry Fields": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Analysis & Classification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply to a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analysis & Classification",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record": {
+      "main": [
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "Search records": {
+      "main": [
+        [
+          {
+            "node": "Tech Selector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Analysis & Classification",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a record": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analysis & Classification",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Analysis & Classification": {
+      "main": [
+        [
+          {
+            "node": "SLA Calculator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SLA Calculator": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tech Selector": {
+      "main": [
+        [
+          {
+            "node": "Record Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Update": {
+      "main": [
+        [
+          {
+            "node": "Workload Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workload Update": {
+      "main": [
+        [
+          {
+            "node": "Get a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Africa/Lagos",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "IuRhq8c0L7108u3A"
+  },
+  "versionId": "8477aab9-155b-4ef5-a1fc-4b6a54c0dbaf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "92c1dbb1ffdcf2b7e173cb9a4a097195b58466ceab4b6832776e45b7e0913927"
+  },
+  "nodeGroups": [],
+  "id": "1hTXRhm2fEVzATJg",
+  "tags": []
+}
